@@ -1,0 +1,22 @@
+name: notify-weles-on-release
+
+# Fires a repository_dispatch at wisent-ai/weles whenever a new weles-firefox
+# release is published. The weles firefox-integration.yml workflow picks it up
+# and runs end-to-end verification against the trajectory driver.
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch to weles
+        env:
+          GH_TOKEN: ${{ secrets.WELES_WELES_DISPATCH_TOKEN }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          gh api repos/wisent-ai/weles/dispatches \
+            -f event_type=firefox-release-published \
+            -F client_payload[tag]="$TAG"
