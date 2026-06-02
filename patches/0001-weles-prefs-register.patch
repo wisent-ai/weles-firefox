@@ -1,0 +1,27 @@
+diff --git a/modules/libpref/init/all.js b/modules/libpref/init/all.js
+index 9d29e674..1b657b2d 100644
+--- a/modules/libpref/init/all.js
++++ b/modules/libpref/init/all.js
+@@ -3,6 +3,22 @@
+ // License, v. 2.0. If a copy of the MPL was not distributed with this
+ // file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ 
++// weles fingerprint override prefs. Consumed by dom/base/Navigator.cpp,
++// dom/base/nsScreen.cpp, dom/base/nsGlobalWindowOuter.cpp,
++// dom/canvas/ClientWebGLContext.cpp. Default values produce stock Firefox
++// behavior; weles sets them per-session via firefoxUserPrefs.
++pref("weles.fingerprint.webdriver.force",      false);
++pref("weles.fingerprint.webgl.vendor",         "");
++pref("weles.fingerprint.webgl.renderer",       "");
++pref("weles.fingerprint.screen.width",         0);
++pref("weles.fingerprint.screen.height",        0);
++pref("weles.fingerprint.screen.avail_width",   0);
++pref("weles.fingerprint.screen.avail_height",  0);
++pref("weles.fingerprint.window.outer_width",   0);
++pref("weles.fingerprint.window.outer_height",  0);
++pref("weles.fingerprint.window.screen_x",      0);
++pref("weles.fingerprint.window.screen_y",      0);
++
+ // The prefs in this file are shipped with the GRE and should apply to all
+ // embedding situations. Application-specific preferences belong somewhere
+ // else, such as browser/app/profile/firefox.js or

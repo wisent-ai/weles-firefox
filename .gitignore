@@ -1,0 +1,10 @@
+# This repo carries ONLY the patch series + build scripts + docs — never the
+# gecko checkout or build output. Guard against committing multi-GB trees.
+mozilla-central/
+obj-weles/
+artifacts/
+juggler-upstream/
+*.app/
+*.tar.gz
+*.tar.gz.sha256
+.DS_Store

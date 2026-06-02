@@ -1,0 +1,17 @@
+diff --git a/dom/base/Navigator.cpp b/dom/base/Navigator.cpp
+index 124a48bd..76c4cb85 100644
+--- a/dom/base/Navigator.cpp
++++ b/dom/base/Navigator.cpp
+@@ -2283,6 +2283,12 @@ dom::PrivateAttribution* Navigator::PrivateAttribution() {
+ 
+ /* static */
+ bool Navigator::Webdriver() {
++  // weles fingerprint override: suppress webdriver=true regardless of the
++  // running marionette / remote-agent state so Playwright juggler can drive
++  // a session without exposing the automation flag.
++  if (mozilla::Preferences::GetBool("weles.fingerprint.webdriver.force", false)) {
++    return false;
++  }
+ #ifdef ENABLE_WEBDRIVER
+   nsCOMPtr<nsIMarionette> marionette = do_GetService(NS_MARIONETTE_CONTRACTID);
+   if (marionette) {

@@ -1,0 +1,32 @@
+diff --git a/dom/base/nsGlobalWindowOuter.cpp b/dom/base/nsGlobalWindowOuter.cpp
+index b5cf9524..f7db9fd4 100644
+--- a/dom/base/nsGlobalWindowOuter.cpp
++++ b/dom/base/nsGlobalWindowOuter.cpp
+@@ -3479,6 +3479,13 @@ nsresult nsGlobalWindowOuter::GetInnerHeight(double* aInnerHeight) {
+ 
+ CSSIntSize nsGlobalWindowOuter::GetOuterSize(CallerType aCallerType,
+                                              ErrorResult& aError) {
++  // weles fingerprint override: consistent outer size across iframes/workers.
++  int32_t welesW = mozilla::Preferences::GetInt("weles.fingerprint.window.outer_width", 0);
++  int32_t welesH = mozilla::Preferences::GetInt("weles.fingerprint.window.outer_height", 0);
++  if (welesW > 0 && welesH > 0) {
++    return CSSIntSize(welesW, welesH);
++  }
++
+   if (nsIGlobalObject::ShouldResistFingerprinting(aCallerType,
+                                                   RFPTarget::WindowOuterSize)) {
+     if (BrowsingContext* bc = GetBrowsingContext()) {
+@@ -3536,6 +3543,13 @@ CSSPoint nsGlobalWindowOuter::ScreenEdgeSlop() {
+ 
+ CSSIntPoint nsGlobalWindowOuter::GetScreenXY(CallerType aCallerType,
+                                              ErrorResult& aError) {
++  // weles fingerprint override: consistent window origin across contexts.
++  int32_t welesX = mozilla::Preferences::GetInt("weles.fingerprint.window.screen_x", 0);
++  int32_t welesY = mozilla::Preferences::GetInt("weles.fingerprint.window.screen_y", 0);
++  if (welesX != 0 || welesY != 0) {
++    return CSSIntPoint(welesX, welesY);
++  }
++
+   // When resisting fingerprinting, always return (0,0)
+   if (nsIGlobalObject::ShouldResistFingerprinting(aCallerType,
+                                                   RFPTarget::WindowScreenXY)) {

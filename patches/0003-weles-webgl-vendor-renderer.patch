@@ -1,0 +1,34 @@
+diff --git a/dom/canvas/ClientWebGLContext.cpp b/dom/canvas/ClientWebGLContext.cpp
+index d6cd8423..66efb0ff 100644
+--- a/dom/canvas/ClientWebGLContext.cpp
++++ b/dom/canvas/ClientWebGLContext.cpp
+@@ -2402,6 +2402,14 @@ void ClientWebGLContext::GetParameter(JSContext* cx, GLenum pname,
+ 
+         switch (pname) {
+           case dom::WEBGL_debug_renderer_info_Binding::UNMASKED_RENDERER_WEBGL:
++            {
++              nsAutoCString welesRenderer;
++              mozilla::Preferences::GetCString("weles.fingerprint.webgl.renderer", welesRenderer);
++              if (!welesRenderer.IsEmpty()) {
++                ret = Some(std::string(welesRenderer.get()));
++                break;
++              }
++            }
+             if (ShouldResistFingerprinting(RFPTarget::WebGLRenderInfo)) {
+               ret = Some("Mozilla"_ns);
+             } else {
+@@ -2413,6 +2421,14 @@ void ClientWebGLContext::GetParameter(JSContext* cx, GLenum pname,
+             break;
+ 
+           case dom::WEBGL_debug_renderer_info_Binding::UNMASKED_VENDOR_WEBGL:
++            {
++              nsAutoCString welesVendor;
++              mozilla::Preferences::GetCString("weles.fingerprint.webgl.vendor", welesVendor);
++              if (!welesVendor.IsEmpty()) {
++                ret = Some(std::string(welesVendor.get()));
++                break;
++              }
++            }
+             ret = ShouldResistFingerprinting(RFPTarget::WebGLRenderInfo)
+                       ? Some("Mozilla"_ns)
+                       : GetUnmaskedVendor();

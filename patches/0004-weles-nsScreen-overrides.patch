@@ -1,0 +1,46 @@
+diff --git a/dom/base/nsScreen.cpp b/dom/base/nsScreen.cpp
+index 8f76f268..5b70360c 100644
+--- a/dom/base/nsScreen.cpp
++++ b/dom/base/nsScreen.cpp
+@@ -16,6 +16,7 @@
+ #include "nsIDocShellTreeItem.h"
+ #include "nsLayoutUtils.h"
+ #include "nsDeviceContext.h"
++#include "mozilla/Preferences.h"
+ #include "mozilla/GeckoBindings.h"
+ #include "mozilla/widget/ScreenManager.h"
+ 
+@@ -62,6 +63,15 @@ nsDeviceContext* nsScreen::GetDeviceContext() const {
+ }
+ 
+ CSSIntRect nsScreen::GetRect() {
++  // weles fingerprint override: when both width and height prefs are set,
++  // return a rect built from them. Origin is always (0, 0) to match stock
++  // Firefox's primary-display rect.
++  int32_t welesW = mozilla::Preferences::GetInt("weles.fingerprint.screen.width", 0);
++  int32_t welesH = mozilla::Preferences::GetInt("weles.fingerprint.screen.height", 0);
++  if (welesW > 0 && welesH > 0) {
++    return CSSIntRect(0, 0, welesW, welesH);
++  }
++
+   // Return window inner rect to prevent fingerprinting.
+   if (ShouldResistFingerprinting(RFPTarget::ScreenRect)) {
+     return GetTopWindowInnerRectForRFP();
+@@ -88,6 +98,17 @@ CSSIntRect nsScreen::GetRect() {
+ }
+ 
+ CSSIntRect nsScreen::GetAvailRect() {
++  // weles fingerprint override for available screen rect. Falls through to
++  // the screen-rect prefs when the avail_* variant is unset so callers only
++  // need to set one pair in the common case.
++  int32_t welesAW = mozilla::Preferences::GetInt("weles.fingerprint.screen.avail_width", 0);
++  int32_t welesAH = mozilla::Preferences::GetInt("weles.fingerprint.screen.avail_height", 0);
++  if (welesAW <= 0) welesAW = mozilla::Preferences::GetInt("weles.fingerprint.screen.width", 0);
++  if (welesAH <= 0) welesAH = mozilla::Preferences::GetInt("weles.fingerprint.screen.height", 0);
++  if (welesAW > 0 && welesAH > 0) {
++    return CSSIntRect(0, 0, welesAW, welesAH);
++  }
++
+   // Return window inner rect to prevent fingerprinting.
+   if (ShouldResistFingerprinting(RFPTarget::ScreenAvailRect)) {
+     return GetTopWindowInnerRectForRFP();
