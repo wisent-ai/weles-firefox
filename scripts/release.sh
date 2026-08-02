@@ -51,13 +51,18 @@ else
   tar -C "$STAGE" -czf "$OUT" firefox
 fi
 
-SHA=$(shasum -a 256 "$OUT" | awk '{print $1}')
+if command -v shasum >/dev/null 2>&1; then
+  shasum -a 256 "$OUT" > "$OUT.sha256"
+else
+  sha256sum "$OUT" > "$OUT.sha256"
+fi
+SHA="$(awk 'NF{print $1; exit}' "$OUT.sha256")"
 echo "=============================================="
 echo "artifact : $OUT"
-echo "tag      : $TAG"
+echo "checksum : $OUT.sha256"
+echo "tag      : firefox-$TAG"
 echo "platform : $PLAT"
 echo "sha256   : $SHA"
 echo "=============================================="
-echo "Upload as: weles-firefox-${TAG}-${PLAT}.tar.gz"
-echo "to GitHub Release: firefox-${TAG}  on  wisent-ai/weles-firefox"
-echo "Then set WELES_FIREFOX_RELEASE=firefox-${TAG} for weles/scripts/firefox/download.sh."
+echo "Upload both files to GitHub Release firefox-$TAG on wisent-ai/weles-firefox."
+echo "Then set WELES_FIREFOX_RELEASE=firefox-$TAG in the Weles consumer."
