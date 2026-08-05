@@ -21,6 +21,10 @@ if ! printf '%s\n' "$APPROVERS" | tr ',' '\n' \
   echo "ERROR: ${ACTOR:-current GitHub actor} is not an allowlisted Weles release operator" >&2
   exit 1
 fi
+if ! git -C "$REPO_ROOT" diff --quiet || ! git -C "$REPO_ROOT" diff --cached --quiet; then
+  echo "ERROR: commit tracked Firefox release inputs before publishing" >&2
+  exit 1
+fi
 
 if [[ ! -d mozilla-central/obj-weles/dist ]]; then
   echo "ERROR: mozilla-central/obj-weles/dist not found. Run build.sh first." >&2

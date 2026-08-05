@@ -68,9 +68,10 @@ EOF
 
 After `./mach build`, run `bash scripts/release.sh`. The authenticated `gh`
 actor must appear in the repository's comma-separated
-`WELES_RELEASE_APPROVERS` variable; otherwise publication stops before
-packaging. The script publishes an immutable prerelease candidate with its
-checksum, capabilities metadata, source revision, and patch-tree identity.
+`WELES_RELEASE_APPROVERS` variable, and tracked release inputs must match
+`HEAD`; otherwise publication stops before packaging. The script publishes an
+immutable prerelease candidate with its checksum, capabilities metadata,
+source revision, and patch-tree identity.
 Production promotion must reuse those bytes after the Weles evidence gate
 approves their digest.
 
