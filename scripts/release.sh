@@ -10,6 +10,17 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 REPO_ROOT="$(pwd)"
 REPO="wisent-ai/weles-firefox"
+if ! command -v gh >/dev/null 2>&1; then
+  echo "ERROR: gh CLI is required to publish the candidate" >&2
+  exit 1
+fi
+ACTOR="$(gh api user --jq .login)"
+APPROVERS="$(gh variable get WELES_RELEASE_APPROVERS --repo "$REPO")"
+if ! printf '%s\n' "$APPROVERS" | tr ',' '\n' \
+  | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | grep -Fqx "$ACTOR"; then
+  echo "ERROR: ${ACTOR:-current GitHub actor} is not an allowlisted Weles release operator" >&2
+  exit 1
+fi
 
 if [[ ! -d mozilla-central/obj-weles/dist ]]; then
   echo "ERROR: mozilla-central/obj-weles/dist not found. Run build.sh first." >&2
@@ -86,10 +97,6 @@ echo "candidate: $CANDIDATE_TAG"
 echo "platform : $PLAT"
 echo "sha256   : $SHA"
 echo "=============================================="
-if ! command -v gh >/dev/null 2>&1; then
-  echo "ERROR: gh CLI is required to publish the candidate" >&2
-  exit 1
-fi
 gh release create "$CANDIDATE_TAG" \
   "$OUT" "$OUT.sha256" browser-capabilities.release.json release-metadata.json \
   --repo "$REPO" --target "$SOURCE_REVISION" --prerelease \
