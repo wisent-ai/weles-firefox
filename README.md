@@ -64,6 +64,17 @@ EOF
 #                                          in Contents/Info.plist.
 ```
 
+## Publishing a candidate
+
+After `./mach build`, run `bash scripts/release.sh`. The authenticated `gh`
+actor must appear in the repository's comma-separated
+`WELES_RELEASE_APPROVERS` variable, and tracked release inputs must match
+`HEAD`; otherwise publication stops before packaging. The script publishes an
+immutable prerelease candidate with its checksum, capabilities metadata,
+source revision, patch-tree identity, and a portable Sigstore bundle for the
+exact archive. Production promotion must reuse those bytes after the Weles
+evidence gate approves their digest.
+
 ## Consumed-by layout
 
 ```
@@ -72,10 +83,9 @@ EOF
     └── Firefox.app/Contents/MacOS/firefox
 ```
 
-`weles/src/session/wsession.ts::findCustomBrowser(browser)` (Phase-2
-generalization of `findCustomChromium`) resolves this path when
-`WSession.start({ browser: 'firefox' })` is called and a prebuilt binary
-exists. If the path is empty and `browser === 'firefox'`, WSession falls
-through to Playwright's bundled Firefox — which after Phase 1 carries the
-pref/stub/scrub parity work and is safe to use for everything except the
-five surfaces above.
+`weles/src/session/wsession.ts::findCustomBrowser(browser)` resolves this exact
+layout when `WSession.start({ browser: 'firefox' })` is called. Production fails
+closed when the explicit binary is absent. Playwright-managed Firefox is
+available only when a host deliberately sets
+`WELES_ALLOW_PLAYWRIGHT_FIREFOX=1`; it is not an automatic installed-version
+fallback.

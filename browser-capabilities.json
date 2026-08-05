@@ -1,0 +1,18 @@
+{
+  "schema": "weles.browser-capabilities.v1",
+  "engine": "firefox",
+  "upstreamVersion": "142.0a1",
+  "forkPoint": "5836a062",
+  "activation": {
+    "kind": "preferences",
+    "name": "weles.fingerprint.*"
+  },
+  "capabilities": [
+    "navigator-webdriver",
+    "webgl-vendor-renderer",
+    "screen-geometry",
+    "window-outer-geometry",
+    "fingerprint-preference-registration"
+  ],
+  "productionRequirement": "probierz-evidence-bound-to-artifact-sha256"
+}
