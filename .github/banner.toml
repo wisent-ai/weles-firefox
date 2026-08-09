@@ -1,0 +1,15 @@
+[automation]
+managed = true
+source_fingerprint = "f4fa7cb3d2987d28"
+category = "general"
+
+[banner]
+title = "Weles Firefox. Built for what comes next."
+description = "weles-patched Firefox — fingerprint defense in Gecko (parallel to wisent-ai/weles-chromium)"
+product = "Wisent"
+url = "wisent.ai"
+theme = "dark"
+layout = "signal-left"
+art_seed = "weles-firefox"
+width = 1584
+height = 396
