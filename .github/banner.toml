@@ -1,11 +1,13 @@
 [automation]
 managed = true
-source_fingerprint = "12a7b83fdb0dd90d"
+source_fingerprint = "67d69e28840b77d2"
 category = "general"
+copy_status = "missing"
+approved_in = ""
 
 [banner]
-title = "Weles Firefox. Built for what comes next."
-description = "Patches for Firefox for the Weles AI Undetectable Browser Use Ecosystem. Published Firefox Artifact for Browser Use and Instructions How to Cook It."
+title = "Weles Firefox"
+description = ""
 product = "Wisent"
 url = "wisent.com"
 theme = "dark"
