@@ -4,8 +4,8 @@ source_fingerprint = "f4fa7cb3d2987d28"
 category = "general"
 
 [banner]
-title = "Weles Firefox. Built for what comes next."
-description = "weles-patched Firefox — fingerprint defense in Gecko (parallel to wisent-ai/weles-chromium)"
+title = "Firefox for AI agents that need to look human."
+description = "Weles controls browser identity inside Gecko, keeping navigator, WebGL, screen, and window signals consistent."
 product = "Wisent"
 url = "wisent.ai"
 theme = "dark"
