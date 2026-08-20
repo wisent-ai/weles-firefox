@@ -4,8 +4,8 @@ source_fingerprint = "f4fa7cb3d2987d28"
 category = "general"
 
 [banner]
-title = "Firefox for AI agents that need to look human."
-description = "Weles controls browser identity inside Gecko, keeping navigator, WebGL, screen, and window signals consistent."
+title = "Patches for Firefox for the Weles AI Undetectable Browser Use Ecosystem."
+description = "Published Firefox Artifact for Browser Use and Instructions How to Cook It."
 product = "Wisent"
 url = "wisent.ai"
 theme = "dark"
