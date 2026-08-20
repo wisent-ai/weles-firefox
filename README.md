@@ -10,8 +10,11 @@
 
 # weles-firefox
 
-The Weles fingerprint-defense patch series for Firefox, as a reviewable patch
-set parallel to
+Weles Firefox is Firefox for AI agents that need to browse without looking
+automated. It puts browser identity controls inside Gecko so Weles can keep
+navigator, WebGL, screen, and window signals consistent.
+
+The repository carries the reviewable patch set parallel to
 [`wisent-ai/weles-chromium`](https://github.com/wisent-ai/weles-chromium).
 
 This repository is the source of truth for the Gecko delta, its declared
