@@ -14,7 +14,7 @@
 
 set -euo pipefail
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
 if [[ ! -d mozilla-central ]]; then
   echo "ERROR: mozilla-central/ not present. Clone with:" >&2

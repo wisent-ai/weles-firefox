@@ -8,94 +8,126 @@
 [![Source](https://img.shields.io/badge/GitHub-Source-181717?logo=github)](https://github.com/wisent-ai/weles-firefox) [![Issues](https://img.shields.io/badge/GitHub-Issues-181717?logo=github)](https://github.com/wisent-ai/weles-firefox/issues) [![Wisent](https://img.shields.io/badge/Wisent-Website-0B0B0B)](https://wisent.ai) [![Discord](https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white)](https://discord.gg/qRjpkthq54) [![LinkedIn](https://img.shields.io/badge/LinkedIn-Follow-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/company/wisent-ai/) [![X](https://img.shields.io/badge/X-Follow-000000?logo=x&logoColor=white)](https://x.com/wisentai) [![Enterprise](https://img.shields.io/badge/Enterprise-Book%20a%20call-0B0B0B?logo=calendly)](https://calendly.com/lbartoszcze)
 <!-- wisent-readme-signals:end -->
 
-# firefox-build
+# weles-firefox
 
-Sibling of `../chromium-build/`. Hosts the weles-patched Firefox source tree
-and its build output. Consumed by `../weles/` via
-`scripts/firefox/download.sh` (pulls the prebuilt tarball) or by pointing
-`FIREFOX_PATH` at the local `dist/` output.
+The Weles fingerprint-defense patch series for Firefox, as a reviewable patch
+set parallel to
+[`wisent-ai/weles-chromium`](https://github.com/wisent-ai/weles-chromium).
 
-**The tree itself is NOT in this directory yet.** This scaffold lands first
-so the build recipe has a home; cloning mozilla-central (~10 GB) and running
-`./mach build` (4–8 h first time) happens in a dedicated session.
+This repository is the source of truth for the Gecko delta, its declared
+capabilities, and the candidate-release contract. It does not vendor the
+Firefox source tree or generated build output. A build uses a separate
+`mozilla-central/` checkout pinned to the declared fork point.
 
-## What gets patched
+## Upstream base
 
-Empirical audit in `../weles/scripts/firefox/prefs_audit.mjs` confirmed that
-five of the six Chromium C++ surfaces are already achievable on stock Firefox
-via `firefoxUserPrefs` — those do not need a fork. The remaining surfaces
-that do require engine-level patches are tracked in
-`../weles/scripts/firefox/PATCHING.md` Phase 2, and their `.patch` files land
-in `./patches/` once written.
+| | |
+|---|---|
+| Upstream version | **142.0a1** |
+| Fork point | `5836a062` |
+| Activation | `weles.fingerprint.*` preferences |
 
-Current patch targets (all applied to gecko-dev@5836a062; verified `git apply --check`):
+Update `browser-capabilities.json`, this table, and the patch series together
+when rebasing onto a newer Firefox revision.
 
-| Surface | Gecko file | Patch |
+## What the patches do
+
+The repository carries five patches:
+
+| Patch | Surface | Gecko file |
 |---|---|---|
-| `weles.fingerprint.*` pref registration | `modules/libpref/init/all.js` | `patches/0001-weles-prefs-register.patch` |
-| `navigator.webdriver=false` short-circuit | `dom/base/Navigator.cpp` | `patches/0002-weles-navigator-webdriver.patch` |
-| WebGL vendor/renderer raw (no sanitizer) | `dom/canvas/ClientWebGLContext.cpp` | `patches/0003-weles-webgl-vendor-renderer.patch` |
-| `screen.width/height/availWidth/availHeight` | `dom/base/nsScreen.cpp` | `patches/0004-weles-nsScreen-overrides.patch` |
-| `window.outerWidth/outerHeight/screenX/screenY` | `dom/base/nsGlobalWindowOuter.cpp` | `patches/0005-weles-window-outer-overrides.patch` |
+| `0001-weles-prefs-register.patch` | Registers the `weles.fingerprint.*` preferences | `modules/libpref/init/all.js` |
+| `0002-weles-navigator-webdriver.patch` | Overrides `navigator.webdriver` when explicitly configured | `dom/base/Navigator.cpp` |
+| `0003-weles-webgl-vendor-renderer.patch` | Supplies configured WebGL vendor and renderer values | `dom/canvas/ClientWebGLContext.cpp` |
+| `0004-weles-nsScreen-overrides.patch` | Supplies configured screen and available-screen geometry | `dom/base/nsScreen.cpp` |
+| `0005-weles-window-outer-overrides.patch` | Supplies configured outer-window geometry and screen position | `dom/base/nsGlobalWindowOuter.cpp` |
 
-The tree at `mozilla-central/` currently has all five patches applied. To
-rebase onto a newer commit: `git checkout HEAD -- <files>` to revert,
-`git fetch --depth 1 origin master && git reset --hard FETCH_HEAD`, then
-`git apply patches/*.patch` again — hunks are small enough that fuzzy
-apply (`git am -3`) works when context shifts.
+The overrides are opt-in. Weles supplies the matching preferences for an
+authorized browser session; an unconfigured build retains Firefox's normal
+values. `browser-capabilities.json` is the machine-readable declaration used
+by the release process.
 
-## Build recipe (to run in a future session)
+## Repository layout
 
-```bash
-# One-time
-git clone https://hg.mozilla.org/mozilla-central mozilla-central  # ~10 GB
-cd mozilla-central
-./mach bootstrap --no-interactive --application-choice=browser
-# Pin the commit the patches target. Update PINNED_REV below when rebasing.
-# PINNED_REV=<short-sha>
-# hg update -r $PINNED_REV
-
-# Apply weles patches (lands in this directory as we write them)
-for p in ../patches/*.patch; do hg import --no-commit "$p"; done
-
-# Build
-cat > .mozconfig <<'EOF'
-ac_add_options --enable-release
-ac_add_options --disable-debug
-ac_add_options --enable-optimize
-mk_add_options MOZ_OBJDIR=@TOPSRCDIR@/obj-weles
-EOF
-./mach build
-
-# Output
-# obj-weles/dist/Nightly.app/  (macOS)  →  copy + rename to Weles.app if you want
-#                                          the Dock label to be something other
-#                                          than "Nightly". CFBundleName lives
-#                                          in Contents/Info.plist.
+```text
+patches/                    Reviewable Gecko patch series
+browser-capabilities.json   Versioned capability declaration
+scripts/build.sh            Idempotent patch application and Firefox build
+scripts/verify.mjs          Post-build surface verification
+scripts/release.sh          Candidate packaging and publication
+.github/workflows/release.yml
+                            Candidate attestation and Weles dispatch
 ```
 
-## Publishing a candidate
+## Build
 
-After `./mach build`, run `bash scripts/release.sh`. The authenticated `gh`
-actor must appear in the repository's comma-separated
+Building Firefox requires the Mozilla toolchain and a large Gecko checkout.
+Keep that generated checkout at `mozilla-central/`; it is intentionally
+excluded from this repository.
+
+```sh
+git clone --filter=blob:none https://github.com/mozilla/gecko-dev.git mozilla-central
+git -C mozilla-central checkout 5836a062
+bash scripts/build.sh
+```
+
+`scripts/build.sh` applies every patch once, bootstraps the Mozilla toolchain
+when needed, and runs `mach build`. Use `bash scripts/build.sh --no-build` to
+prepare and check patch application without compiling Firefox.
+
+Build output:
+
+```text
+mozilla-central/obj-weles/dist/Nightly.app/Contents/MacOS/firefox  # macOS
+mozilla-central/obj-weles/dist/bin/firefox                          # Linux
+```
+
+## Verify a build
+
+```sh
+node scripts/verify.mjs
+```
+
+The verifier launches the built browser against a loopback page and checks
+`navigator.webdriver`, WebGL identity, screen geometry, and outer-window
+geometry against explicit Weles preference values.
+
+## Publish a candidate
+
+```sh
+bash scripts/release.sh
+```
+
+The authenticated GitHub actor must appear in the repository's
 `WELES_RELEASE_APPROVERS` variable, and tracked release inputs must match
-`HEAD`; otherwise publication stops before packaging. The script publishes an
-immutable prerelease candidate with its checksum, capabilities metadata,
-source revision, patch-tree identity, and a portable Sigstore bundle for the
-exact archive. Production promotion must reuse those bytes after the Weles
-evidence gate approves their digest.
+`HEAD`. The script packages the current platform build and publishes an
+immutable prerelease candidate containing:
 
-## Consumed-by layout
+- the Firefox archive and SHA-256 checksum;
+- `browser-capabilities.json`;
+- source revision, patch-tree identity, platform, and entrypoint metadata.
 
+The release workflow binds the declared bytes to the source revision, creates
+a portable Sigstore attestation, and dispatches the candidate to Weles.
+Production promotion must reuse those exact bytes after Probierz evidence is
+bound to their digest.
+
+## Consumption by Weles
+
+Weles installs the promoted archive through its Stado release path under:
+
+```text
+~/.local/share/weles-firefox/<version>-weles.N/
+└── Firefox.app/Contents/MacOS/firefox
 ```
-~/.local/share/weles-firefox/
-└── <version>-weles.N/
-    └── Firefox.app/Contents/MacOS/firefox
-```
 
-`weles/src/session/wsession.ts::findCustomBrowser(browser)` resolves this exact
-layout when `WSession.start({ browser: 'firefox' })` is called. Production fails
-closed when the explicit binary is absent. Playwright-managed Firefox is
-available only when a host deliberately sets
-`WELES_ALLOW_PLAYWRIGHT_FIREFOX=1`; it is not an automatic installed-version
-fallback.
+Linux archives contain `firefox/firefox` instead. Weles launches only the
+deployment-selected version whose checksum and local release receipt match;
+absence or mismatch fails closed.
+
+## Security and authorization
+
+This source code does not authorize automation of any target. Weles workflows
+remain bound to explicit origins, actions, credentials, and operator policy.
+Report vulnerabilities through a
+[private GitHub Security Advisory](https://github.com/wisent-ai/weles-firefox/security/advisories/new).
