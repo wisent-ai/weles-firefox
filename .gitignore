@@ -8,3 +8,4 @@ juggler-upstream/
 *.tar.gz
 *.tar.gz.sha256
 .DS_Store
+__pycache__/
