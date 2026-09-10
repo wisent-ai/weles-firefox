@@ -54,28 +54,20 @@ by the release process.
 ```text
 patches/                    Reviewable Gecko patch series
 browser-capabilities.json   Versioned capability declaration
-scripts/build.sh            Idempotent patch application and Firefox build
-scripts/verify.mjs          Post-build surface verification
-scripts/release.sh          Candidate packaging and publication
+weles_firefox/__main__.py    Apple-signed candidate packaging CLI
 .github/workflows/release.yml
                             Candidate attestation and Weles dispatch
 ```
 
-## Build
+## Build input
 
-Building Firefox requires the Mozilla toolchain and a large Gecko checkout.
-Keep that generated checkout at `mozilla-central/`; it is intentionally
-excluded from this repository.
+The packager consumes an existing patched Firefox macOS build. The Gecko
+checkout and Mozilla toolchain are not part of this repository. Build that
+checkout with Mozilla's `mach build` after applying this repository's patch
+series to the declared fork point. Packaging does not build or launch Firefox.
 
-```sh
-git clone --filter=blob:none https://github.com/mozilla/gecko-dev.git mozilla-central
-git -C mozilla-central checkout 5836a062
-bash scripts/build.sh
-```
-
-`scripts/build.sh` applies every patch once, bootstraps the Mozilla toolchain
-when needed, and runs `mach build`. Use `bash scripts/build.sh --no-build` to
-prepare and check patch application without compiling Firefox.
+The former `scripts/build.sh`, `scripts/verify.mjs` and `scripts/release.sh`
+were removed from this repository; they are not supported commands.
 
 Build output:
 
@@ -84,35 +76,41 @@ mozilla-central/obj-weles/dist/Nightly.app/Contents/MacOS/firefox  # macOS
 mozilla-central/obj-weles/dist/bin/firefox                          # Linux
 ```
 
-## Verify a build
+## Package a signed macOS candidate
+
+The build host needs Python 3.11 or later, Wisent Products, and an available
+Apple Development or Developer ID Application signing identity. Commit the
+packaging inputs first. From this repository:
 
 ```sh
-node scripts/verify.mjs
+python3 -m weles_firefox package \
+  --app /path/to/Nightly.app \
+  --version 142.0a1-weles.6
 ```
 
-The verifier launches the built browser against a loopback page and checks
-`navigator.webdriver`, WebGL identity, screen geometry, and outer-window
-geometry against explicit Weles preference values.
+Use the intended candidate revision instead of `6`. The command verifies the
+input's Firefox version, copies it, preserves its `CFBundleIdentifier`, and
+uses the [shared signing contract](https://stado.wisent.com/docs/signing) for
+nested native code and the complete app. It verifies Apple trust with macOS
+`codesign` before creating the archive and digest. The original app is unchanged.
+The command does not launch a browser, request a privacy grant, reset TCC, or
+publish a release.
 
-## Publish a candidate
+Its JSON answer names the output directory under `artifacts/`, containing:
 
-```sh
-bash scripts/release.sh
-```
+- the signed Firefox archive and SHA-256 checksum;
+- `browser-capabilities.release.json`;
+- `release-metadata.json` with the candidate tag, source revision, patch tree,
+  platform, entrypoint, input executable digest and Apple designated requirement.
 
-The authenticated GitHub actor must appear in the repository's
-`WELES_RELEASE_APPROVERS` variable, and tracked release inputs must match
-`HEAD`. The script packages the current platform build and publishes an
-immutable prerelease candidate containing:
+Missing signing tools or certificates remain errors. An incompatible input
+version, a dirty producer checkout and an existing candidate directory are
+refused. Ad-hoc signing is not an installation identity.
 
-- the Firefox archive and SHA-256 checksum;
-- `browser-capabilities.json`;
-- source revision, patch-tree identity, platform, and entrypoint metadata.
-
-The release workflow binds the declared bytes to the source revision, creates
-a portable Sigstore attestation, and dispatches the candidate to Weles.
-Production promotion must reuse those exact bytes after Probierz evidence is
-bound to their digest.
+Publication retains the existing allowlisted-operator and candidate-attestation
+workflow. It consumes these exact archive bytes; production promotion must
+reuse them with verification evidence bound to their digest. Never re-sign a
+checksum-selected browser installation in place.
 
 ## Consumption by Weles
 
