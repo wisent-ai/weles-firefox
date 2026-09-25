@@ -63,7 +63,7 @@ def package(app, version, output):
         staged = work / "Firefox.app"
         shutil.copytree(app, staged, symlinks=True)
         signing = json.loads(command([
-            "wisent-products", "signing", "sign", "--identifier", identifier,
+            "stado", "product", "signing", "sign", "--identifier", identifier,
             str(staged), "--json",
         ]))[0]
         if signing["state"] != "stable":
