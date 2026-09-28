@@ -54,7 +54,7 @@ by the release process.
 ```text
 patches/                    Reviewable Gecko patch series
 browser-capabilities.json   Versioned capability declaration
-weles_firefox/__main__.py    Apple-signed candidate packaging CLI
+src/main.rs                 Apple-signed candidate packaging CLI (Rust)
 .github/workflows/release.yml
                             Candidate attestation and Weles dispatch
 ```
@@ -78,12 +78,12 @@ mozilla-central/obj-weles/dist/bin/firefox                          # Linux
 
 ## Package a signed macOS candidate
 
-The build host needs Python 3.11 or later, Wisent Products, and an available
+The build host needs Rust, Stado (`stado product signing`), and an available
 Apple Development or Developer ID Application signing identity. Commit the
 packaging inputs first. From this repository:
 
 ```sh
-python3 -m weles_firefox package \
+cargo run --release -- package \
   --app /path/to/Nightly.app \
   --version 142.0a1-weles.6
 ```
