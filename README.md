@@ -96,7 +96,8 @@ nested native code and the complete app. It verifies Apple trust with macOS
 The command does not launch a browser, request a privacy grant, reset TCC, or
 publish a release.
 
-Its JSON answer names the output directory under `artifacts/`, containing:
+It prints the candidate as `field: value` lines, or as JSON with `--json`, and
+names the output directory under `artifacts/` (`directory`), containing:
 
 - the signed Firefox archive and SHA-256 checksum;
 - `browser-capabilities.release.json`;

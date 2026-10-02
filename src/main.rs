@@ -14,7 +14,10 @@ use sha2::{Digest, Sha256};
 const ROOT: &str = env!("CARGO_MANIFEST_DIR");
 
 #[derive(Parser)]
-#[command(about = "Package an existing Firefox build without launching or modifying it")]
+#[command(
+    about = "Package an existing Firefox build without launching or modifying it",
+    after_help = "Exit 2: the invocation is wrong; exit 1: the input, the signature or the output refused, with the reason on stderr."
+)]
 struct Cli {
     #[command(subcommand)]
     command: Action,
@@ -24,12 +27,18 @@ struct Cli {
 enum Action {
     /// Sign a copied Firefox app before archiving and hashing.
     Package {
+        /// The Firefox .app to package; it is copied, never launched or changed.
         #[arg(long)]
         app: PathBuf,
+        /// Candidate version, `<upstream>-weles.N`.
         #[arg(long)]
         version: String,
+        /// Directory the candidate directory is created in.
         #[arg(long, default_value = concat!(env!("CARGO_MANIFEST_DIR"), "/artifacts"))]
         output: PathBuf,
+        /// Print the candidate as JSON instead of `field: value` lines.
+        #[arg(long)]
+        json: bool,
     },
 }
 
@@ -195,9 +204,19 @@ fn package(app: &Path, version: &str, output: &Path) -> Result<Value> {
 }
 
 fn main() {
-    let Action::Package { app, version, output } = Cli::parse().command;
+    let Action::Package { app, version, output, json } = Cli::parse().command;
     match package(&app, &version, &output) {
-        Ok(answer) => println!("{}", serde_json::to_string_pretty(&answer).unwrap_or_default()),
+        Ok(answer) if json => println!("{}", serde_json::to_string_pretty(&answer).unwrap_or_default()),
+        Ok(answer) => {
+            // The same candidate as `field: value` lines (cli.md rule 13); the
+            // nested code signature prints as one JSON value.
+            for (field, value) in answer.as_object().into_iter().flatten() {
+                match value.as_str() {
+                    Some(text) => println!("{field}: {text}"),
+                    None => println!("{field}: {value}"),
+                }
+            }
+        }
         Err(error) => {
             eprintln!("Error: {error:#}");
             std::process::exit(1);
