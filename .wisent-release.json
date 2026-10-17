@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "product": "weles-firefox",
+  "releases": false,
+  "reason": "Stado builds no weles-firefox artifact from this repository: an operator runs the packager over an Apple-signed Firefox build and publishes the candidate as a GitHub prerelease, which .github/workflows/release.yml attests and hands to Weles for verification."
+}

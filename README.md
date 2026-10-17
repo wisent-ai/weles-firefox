@@ -97,7 +97,8 @@ The command does not launch a browser, request a privacy grant, reset TCC, or
 publish a release.
 
 It prints the candidate as `field: value` lines, or as JSON with `--json`, and
-names the output directory under `artifacts/` (`directory`), containing:
+names the output directory under `artifacts/` (`directory`),
+`candidate-firefox-<version>-<full source revision>-<platform>`, containing:
 
 - the signed Firefox archive and SHA-256 checksum;
 - `browser-capabilities.release.json`;
@@ -105,13 +106,21 @@ names the output directory under `artifacts/` (`directory`), containing:
   platform, entrypoint, input executable digest and Apple designated requirement.
 
 Missing signing tools or certificates remain errors. An incompatible input
-version, a dirty producer checkout and an existing candidate directory are
-refused. Ad-hoc signing is not an installation identity.
+version, an input without a `CFBundleIdentifier`, a signing answer that names
+no signature, a dirty producer checkout and an existing candidate directory
+are refused. A staging tree the command cannot remove afterwards is an error
+naming it, joined to the packaging refusal when both failed. Every child
+process it waits for (`cp`, `stado`, `codesign`, `git`) is announced on
+stderr with where and since when, and how it ended. Ad-hoc signing is not an
+installation identity.
 
 Publication retains the existing allowlisted-operator and candidate-attestation
 workflow. It consumes these exact archive bytes; production promotion must
 reuse them with verification evidence bound to their digest. Never re-sign a
 checksum-selected browser installation in place.
+
+Because publication runs through that workflow and not through Stado,
+`.wisent-release.json` declares `releases: false` with that reason.
 
 ## Consumption by Weles
 

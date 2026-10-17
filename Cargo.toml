@@ -18,4 +18,8 @@ hex = "0.4"
 plist = "1"
 serde_json = "1"
 sha2 = "0.10"
+# Every child process the packager runs (cp, stado, codesign, git) is waited
+# for through stado-wait, which says on stderr what it waits for, where and
+# since when, and how it ended.
+stado-wait = { git = "https://github.com/wisent-ai/stado", rev = "692c0438d24117735c61373c0c178f1c1e21b080" }
 tar = "0.4"

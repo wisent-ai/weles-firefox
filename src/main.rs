@@ -4,7 +4,7 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, ExitCode};
 
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
@@ -48,7 +48,7 @@ fn command(program: &str, args: &[&str], cwd: Option<&Path>) -> Result<String> {
     if let Some(cwd) = cwd {
         run.current_dir(cwd);
     }
-    let out = run.output().with_context(|| format!("start {program}"))?;
+    let out = stado_wait::output(&mut run).with_context(|| format!("start {program}"))?;
     let stdout = String::from_utf8_lossy(&out.stdout).trim().to_string();
     if !out.status.success() {
         let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
@@ -74,7 +74,10 @@ fn valid_version(version: &str, upstream: &str) -> bool {
 }
 
 fn valid_identifier(identifier: &str) -> bool {
-    identifier.chars().next().is_some_and(|c| c.is_ascii_alphanumeric())
+    identifier
+        .chars()
+        .next()
+        .is_some_and(|c| c.is_ascii_alphanumeric())
         && identifier
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
@@ -90,16 +93,24 @@ struct Input {
 fn read_input(app: &Path, upstream: &str) -> Result<Input> {
     let app = fs::canonicalize(app).with_context(|| format!("{} does not exist", app.display()))?;
     let info: plist::Dictionary = plist::from_file(app.join("Contents/Info.plist"))?;
-    let text = |key: &str| info.get(key).and_then(plist::Value::as_string).unwrap_or("");
-    if text("CFBundleExecutable") != "firefox" || text("CFBundleShortVersionString") != upstream {
+    let text = |key: &str| info.get(key).and_then(plist::Value::as_string);
+    if text("CFBundleExecutable") != Some("firefox")
+        || text("CFBundleShortVersionString") != Some(upstream)
+    {
         bail!("input must be a Firefox {upstream} application");
     }
-    let identifier = text("CFBundleIdentifier").to_string();
+    let identifier = text("CFBundleIdentifier")
+        .context("Firefox application has no CFBundleIdentifier")?
+        .to_string();
     if !valid_identifier(&identifier) {
         bail!("Firefox application has no valid CFBundleIdentifier");
     }
     let executable_sha256 = digest(&app.join("Contents/MacOS/firefox"))?;
-    Ok(Input { app, identifier, executable_sha256 })
+    Ok(Input {
+        app,
+        identifier,
+        executable_sha256,
+    })
 }
 
 /// Copy, sign and verify the app, then archive it into `work/published`.
@@ -108,16 +119,31 @@ fn stage(work: &Path, input: &Input, version: &str, platform: &str) -> Result<(S
     let staged = work.join("Firefox.app");
     command(
         "/bin/cp",
-        &["-R", &input.app.to_string_lossy(), &staged.to_string_lossy()],
+        &[
+            "-R",
+            &input.app.to_string_lossy(),
+            &staged.to_string_lossy(),
+        ],
         None,
     )?;
     let staged_text = staged.to_string_lossy().to_string();
     let signed = command(
         "stado",
-        &["product", "signing", "sign", "--identifier", &input.identifier, &staged_text, "--json"],
+        &[
+            "product",
+            "signing",
+            "sign",
+            "--identifier",
+            &input.identifier,
+            &staged_text,
+            "--json",
+        ],
         None,
     )?;
-    let mut signing: Value = serde_json::from_str::<Value>(&signed)?[0].take();
+    let mut signing = serde_json::from_str::<Vec<Value>>(&signed)?
+        .into_iter()
+        .next()
+        .context("stado product signing sign answered no signature for the staged app")?;
     if signing["state"] != "stable" {
         bail!("Firefox signature is not stable: {signing}");
     }
@@ -126,7 +152,14 @@ fn stage(work: &Path, input: &Input, version: &str, platform: &str) -> Result<(S
     }
     command(
         "/usr/bin/codesign",
-        &["--verify", "--deep", "--strict", "-R", "=anchor apple generic", &staged_text],
+        &[
+            "--verify",
+            "--deep",
+            "--strict",
+            "-R",
+            "=anchor apple generic",
+            &staged_text,
+        ],
         None,
     )?;
     let published = work.join("published");
@@ -153,18 +186,24 @@ fn package(app: &Path, version: &str, output: &Path) -> Result<Value> {
     let root = Path::new(ROOT);
     let capabilities = root.join("browser-capabilities.json");
     let declared: Value = serde_json::from_slice(&fs::read(&capabilities)?)?;
-    let upstream = declared["upstreamVersion"].as_str().context("upstreamVersion")?;
+    let upstream = declared["upstreamVersion"]
+        .as_str()
+        .context("upstreamVersion")?;
     if !valid_version(version, upstream) {
         bail!("version must be {upstream}-weles.N with N greater than zero");
     }
     let input = read_input(app, upstream)?;
     let revision = command("git", &["rev-parse", "HEAD"], Some(root))?;
-    let dirty = command("git", &["status", "--porcelain", "--untracked-files=normal"], Some(root))?;
+    let dirty = command(
+        "git",
+        &["status", "--porcelain", "--untracked-files=normal"],
+        Some(root),
+    )?;
     if !dirty.is_empty() {
         bail!("commit Firefox packaging inputs before creating a candidate");
     }
     let patch_tree = command("git", &["rev-parse", "HEAD:patches"], Some(root))?;
-    let candidate = format!("candidate-firefox-{version}-{}", &revision[..8]);
+    let candidate = format!("candidate-firefox-{version}-{revision}");
     fs::create_dir_all(output)?;
     let output = fs::canonicalize(output)?;
     let destination = output.join(format!("{candidate}-{platform}"));
@@ -190,7 +229,10 @@ fn package(app: &Path, version: &str, output: &Path) -> Result<Value> {
         });
         let text = serde_json::to_string_pretty(&metadata)? + "\n";
         fs::write(published.join("release-metadata.json"), text)?;
-        fs::copy(&capabilities, published.join("browser-capabilities.release.json"))?;
+        fs::copy(
+            &capabilities,
+            published.join("browser-capabilities.release.json"),
+        )?;
         if destination.exists() {
             bail!("candidate output already exists: {}", destination.display());
         }
@@ -199,14 +241,32 @@ fn package(app: &Path, version: &str, output: &Path) -> Result<Value> {
         answer["directory"] = json!(destination.display().to_string());
         Ok(answer)
     })();
-    let _ = fs::remove_dir_all(&work);
-    result
+    // A staging tree left behind holds a signed copy of Firefox in the output
+    // directory; its removal failing is reported. When the candidate was
+    // already published the error says where, and when packaging failed too
+    // both causes are joined.
+    let removal = fs::remove_dir_all(&work)
+        .with_context(|| format!("removing the staging tree {} failed", work.display()));
+    match (result, removal) {
+        (Ok(answer), Ok(())) => Ok(answer),
+        (Ok(_), Err(removal)) => Err(removal.context(format!(
+            "the candidate was published at {}, but its staging tree was left behind",
+            destination.display()
+        ))),
+        (Err(error), Ok(())) => Err(error),
+        (Err(error), Err(removal)) => Err(anyhow::anyhow!("{error:#}; {removal:#}")),
+    }
 }
 
-fn main() {
-    let Action::Package { app, version, output, json } = Cli::parse().command;
+fn main() -> ExitCode {
+    let Action::Package {
+        app,
+        version,
+        output,
+        json,
+    } = Cli::parse().command;
     match package(&app, &version, &output) {
-        Ok(answer) if json => println!("{}", serde_json::to_string_pretty(&answer).unwrap_or_default()),
+        Ok(answer) if json => println!("{answer:#}"),
         Ok(answer) => {
             // The same candidate as `field: value` lines (cli.md rule 13); the
             // nested code signature prints as one JSON value.
@@ -219,7 +279,8 @@ fn main() {
         }
         Err(error) => {
             eprintln!("Error: {error:#}");
-            std::process::exit(1);
+            return ExitCode::FAILURE;
         }
     }
+    ExitCode::SUCCESS
 }
